@@ -34,7 +34,7 @@ Example invocations:
 For each of the top N ranked jobs (default 3, up to 5):
 
 1. Read `skills/job-match/SKILL.md`
-2. Run /job-match — output all 6 blocks + score
+2. Run /job-match — output all 5 blocks (A–E) + score
 3. Save match report to `outputs/reports/match_report_[company]_[role]_[date].md`
 4. After each: "✅ [Job Title] at [Company] — Score: [X]/100. Continuing..."
 

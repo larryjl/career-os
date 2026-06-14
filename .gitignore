@@ -1,17 +1,18 @@
-# Generated outputs — do not commit personal documents
-outputs/resumes/*.docx
-outputs/resumes/*.pdf
-outputs/cover-letters/*.docx
-outputs/cover-letters/*.pdf
-outputs/reports/*.md
-outputs/interview-notes/*.md
+# Personal data — do not commit
+.claude/memory/
+outputs/
+profile/
 
-# Personal profile — do not commit your resume to a public repo
-profile/master-resume.pdf
-profile/master-resume.md
+# Temp files written by skill scripts
+tmp_*
 
-# Keep the placeholder files
-!profile/master-resume.md.example
+# Session state and config
+.claude/state/
+.claude/config/
+
+# Scout-adzuna skill (optional add-on, not part of base repo)
+skills/scout-adzuna/
+skills/scout-link/
 
 # OS files
 .DS_Store

@@ -21,7 +21,7 @@
 2. Read `profile/master-resume.md`
 3. Run /interview-prep for the specified job
 4. Output: 10 questions + 3 STAR+R frameworks + 5 ask-them questions + checklist
-5. Save to `outputs/interview-notes/prep_[company]_[role]_[date].md`
+5. Save to `outputs/interview-notes/prep_[company]_[role]_[date].docx`
 6. Ask: "Ready to run a live mock interview now? (yes / later)"
 
 ### Step 2 — Mock Interview (if yes)
@@ -40,7 +40,7 @@
 ```
 ✅ Interview Ready — [Job Title] at [Company]
 
-Prep Kit:   outputs/interview-notes/prep_[filename].md
+Prep Kit:   outputs/interview-notes/prep_[filename].docx
 Debrief:    outputs/interview-notes/mock_debrief_[filename].md
 
 Overall Readiness: [Ready / Nearly Ready / More Prep Needed]

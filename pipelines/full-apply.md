@@ -30,7 +30,7 @@ If no JD is provided:
 
 1. Read `skills/job-match/SKILL.md`
 2. Run /job-match on the selected job
-3. Output all 6 blocks (A through F) + score
+3. Output all 5 blocks (A through E) + score
 4. If score is below 55, flag: "This role is a significant mismatch (score: X/100).
    Apply anyway? (yes / pick a different job)"
 5. Confirm: "Score: [X]/100. Continue to resume? (yes / skip)"

@@ -1,6 +1,6 @@
 ---
 name: interview-prep
-description: "Generates role-specific interview preparation based on a job description and the master resume in the project. Produces: top 10 interview questions labelled by type, 3 STAR+R answer frameworks built from actual resume experience, and 5 smart questions to ask the interviewer. Trigger on: 'prep me for this interview', 'interview questions for this role', 'help me prepare', '/interview-prep', or when a JD is shared with intent to prepare for an interview."
+description: "Generates a complete, role-specific interview preparation kit. Produces: top 10 interview questions by type, a full STAR+R story bank (6-8 stories with coaching tips), a recommended case study, red-flag Q&A, and 5 smart questions to ask the interviewer. Loads existing match report context if available. Trigger on: 'prep me for this interview', 'interview questions for this role', 'help me prepare', '/interview-prep', or when a JD is shared with intent to prepare for an interview."
 ---
 
 # Interview Prep Skill
@@ -24,6 +24,30 @@ Check what has been provided:
   that row and treat as the JD input
 - **"/interview-prep" with no job** → ask: "Which role are you prepping for? Paste the JD
   and I'll build your full prep kit."
+
+### Match Report Loading
+
+Before deriving anything from the resume, check `outputs/reports/` for an existing
+match report for this company + role:
+
+```
+outputs/reports/match_report_[company]_[role]_[date].md
+```
+
+**Globbing:** use case-insensitive matching when searching — historic match reports (pre-2026-04-29) use mixed-case company names. In Python: lowercase both the search target and the candidate filenames before comparing, or use `pathlib.Path.glob` combined with `re.IGNORECASE` filtering.
+
+- **If found** → use the Read tool to load the full markdown into context. The report has these named sections you can extract by header:
+  - `## Block A` (or `## Snapshot`) — role summary
+  - `## Block B` (or `## Profile Match`) — strengths, gaps, requirements coverage
+  - `## Block C` (or `## Positioning`) — recommended framing and language
+  - `## Block D` (or `## Competitive Landscape`) — who else is applying, differentiation strategy
+  - `## Block E` (or `## ATS Keywords` / `## Personalisation`) — keyword list
+  - `## Block F` (or `## Compensation`) — salary anchors
+
+  Find each `## Block X` heading and read until the next `## ` heading. Use Block B's gap analysis to sharpen red-flag questions, Block C's positioning language in STAR story framing, and Block B's requirements mapping to select which achievements to surface. If a section header isn't found (older reports vary), pass the full report through and extract what you can.
+
+  Do not re-derive what the match report already contains — build on top of it.
+- **If not found** → derive everything fresh from the master resume. Tell the user: "No match report found — running interview-prep from resume only. Run `/job-match` first for a richer prep kit."
 
 ---
 
@@ -105,28 +129,37 @@ Do not add answer guidance here — answers come in Part 2.
 
 ---
 
-### Part 2 — STAR+R Answer Frameworks
+### Part 2 — STAR+R Story Bank
 
-Pick the 3 most likely behavioural or situational questions from Part 1.
-For each, build a STAR+R skeleton using actual experience from the master resume.
+Generate 6–8 STAR+R stories mapped to the JD's key requirements.
+Pull all stories from actual experience in the master resume — no fabrication.
+If a match report is loaded, use Block B's requirements mapping to select which
+achievements to surface and which gaps to acknowledge.
+
+**Why STAR+R matters:** Junior candidates describe what happened.
+Senior candidates extract lessons. The Reflection is your seniority signal — never skip it.
 
 **STAR+R format:**
-- **S — Situation:** Set the context — what was the environment, team size, stage?
+- **S — Situation:** Context, stakes, environment — what was going on?
 - **T — Task:** What were you specifically responsible for?
 - **A — Action:** What did YOU do? (Not the team — use "I", not "we")
 - **R — Result:** Quantified outcome where it exists in the resume. Use placeholders
   like `[X%]` or `[N users]` if the number exists in the resume but needs confirming.
 - **Reflection:** What did this teach you? What would you do differently?
-  This is what separates senior candidates from junior ones.
 
-**Why STAR+R matters:** Junior candidates describe what happened.
-Senior candidates extract lessons. The Reflection column is your seniority signal.
+**Archetype story emphasis:**
+- **Builder** → speed of delivery, technical decisions, shipping under constraints
+- **Consultant** → client outcomes, difficult stakeholders, scoping under ambiguity
+- **Product** → discovery insights, prioritisation trade-offs, metrics moved
+- **Operator** → systems built, efficiency created, cross-functional influence
+- **Manager** → hiring decisions, performance conversations, team culture
+- **Specialist** → depth of expertise demonstrated, novel problem solved
 
 Format each story as:
 
 ```
 ─────────────────────────────────────────
-Q: "[Question text]"
+JD Requirement: [requirement this story addresses]
 
 S: [2 sentences — context and stakes]
 T: [1 sentence — your specific ownership]
@@ -134,13 +167,40 @@ A: [3–4 sentences — concrete actions, decisions, trade-offs you made]
 R: [1–2 sentences — outcome with numbers if available]
 ★ Reflection: [What you learned or would do differently — 1–2 sentences]
 
-💡 Tip: [One coaching note specific to this question and this role]
+💡 Tip: [One coaching note specific to this story and this role]
 ─────────────────────────────────────────
 ```
 
 ---
 
-### Part 3 — Questions to Ask Them
+### Part 3 — Recommended Case Study
+
+Which of the candidate's projects or roles to prepare as a full case study for this
+role, and how to structure it:
+
+**Project:** [name from resume]
+**Why this one:** [why it maps best to this role]
+**How to structure it:** [3–4 sentences — what to lead with, which metrics to
+emphasise, how to tie it to the JD's core problem]
+
+---
+
+### Part 4 — Red-Flag Questions & How to Answer Them
+
+Questions the interviewer may ask that could be uncomfortable, based on the JD,
+the candidate's background, and any gaps identified in Block B of the match report
+(or freshly derived from the resume if no match report exists).
+
+| Question | Why It's Asked | How to Answer It |
+|----------|---------------|-----------------|
+| "Why did you leave / sell your company?" | Assessing risk, commitment, ambiguity tolerance | [Specific framing using candidate's actual situation] |
+| "You've been independent for X years — can you work within a structure?" | Culture fit, coachability | [How to reframe operator independence as an asset] |
+| "You don't have [specific gap] — how would you handle that?" | Testing self-awareness and learning agility | [Specific bridge using adjacent experience] |
+| [Other role-specific red flags based on the JD and resume gaps] | | |
+
+---
+
+### Part 5 — Questions to Ask Them
 
 5 smart questions the candidate should ask the interviewer. Rules:
 - Specific to this JD and company — not generic
@@ -159,6 +219,7 @@ Format:
 ---
 
 ### ⚡ Quick Prep Checklist
+
 
 Output this block at the end:
 
@@ -188,10 +249,88 @@ After:
   specific to this JD and this candidate's actual resume
 - Never fabricate achievements — only use experience from the master resume
 - Never ask for the resume — it is in the project
+- If a match report exists for the role, always load and use it — do not ignore it
 - The STAR+R stories are frameworks, not scripts — tell the candidate to
   personalise the wording in their own voice
-- Do not output a file — this skill outputs directly in chat for easy reading
-  and quick reference during practise sessions
+- Red-flag questions must be specific to this candidate's actual background and the
+  JD's real gaps — do not use generic placeholders
+- Do not preview content in chat before saving — generate and save immediately
+- Confirm completion with the file path and a one-line summary
+
+## File Generation
+
+Serialize the interview prep content to `/tmp/interview_content.py`:
+
+```python
+content = {
+    "company": "[Display company name]",
+    "role": "[Display role name]",
+    "questions": [
+        {
+            "number": 1,
+            "type": "Behavioural",        # or Technical / Situational / Role-specific
+            "question": "[Question text]",
+            "approach": "[How to approach this question]",
+            "story": {
+                "situation": "...",
+                "task": "...",
+                "action": "...",
+                "result": "...",
+                "reflection": "...",
+            },
+            "tip": "[Coaching tip]",
+        },
+    ],
+    "red_flag_questions": [
+        {
+            "question": "[Red-flag question]",
+            "why_asked": "[Reason interviewer asks this]",
+            "how_to_answer": "[How to reframe or address it]",
+        },
+    ],
+    "company_research": [
+        "[Key fact about company]",
+    ],
+    "questions_to_ask": [
+        "[Question to ask interviewer]",
+    ],
+}
+```
+
+Then run:
+```bash
+python3 skills/interview-prep/generate_interview_notes.py \
+  --company "[normalised-company]" \
+  --role "[normalised-role]" \
+  --content-file /tmp/interview_content.py \
+  --output-dir outputs/interview-notes/
+```
+
+The script produces a structured `.docx` with: question table (Part 1), STAR story bank (Part 2), company research (Part 3), red-flag questions table (Part 4), and questions to ask (Part 5). All formatting, metadata, and headings are handled by the script. Prints `SAVED:/path` on success.
+
+---
+
+## Interview Story Persistence
+
+After generating the STAR+R story bank, save new stories to `.claude/memory/interview-stories.md`. Ask first: "Use saved stories / generate fresh / mix?"
+
+**Story structure:**
+
+```
+## [Story Name] — [STAR Category]
+**Best for:** [role/context where this lands hardest]
+**Story:** [2–3 sentences, STAR format]
+**Why it works:** [what resonates; what feedback validated it]
+**Last refined:** [YYYY-MM-DD]
+**Status:** active | archived
+```
+
+**STAR categories:** Leadership, Technical, Conflict, Growth, Execution, Scope Management, Stakeholder Alignment, Data/Analytics.
+
+**Lifecycle:**
+- Generation: seed from resume highlights; mark `active`
+- Post-mock: update `Why it works`, refine wording, increment `Last refined`; mark `archived` if story no longer resonates
+- Reuse: stories marked `active` are seeded into subsequent prep sessions automatically
 
 ---
 

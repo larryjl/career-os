@@ -1,327 +1,155 @@
 ---
 name: cover-letter-generator
-description: "Generates a tailored, ATS-optimised cover letter matched to a specific job description using the master resume already in the project. Outputs a professionally formatted .docx file by default, or .pdf on request. Trigger on: 'write a cover letter', 'generate a cover letter', 'cover letter for this job', or when a job description is provided alongside a request for application documents."
+description: "Generates a tailored, ATS-optimised cover letter matched to a specific job description. Trigger on: 'write a cover letter', 'generate a cover letter', 'cover letter for this job'."
 ---
 
-# Cover Letter Generator
+## Step 1 — Input & Format Detection
 
-## Overview
+- JD present → proceed immediately
+- Job title + company only → ask: "Can you paste the full job description?"
+- Table row → extract Title, Company, Location, Description
 
-This skill generates a tailored cover letter for a specific job using the master resume
-and LinkedIn profile already uploaded in this project. It never asks for the resume again.
-Output is a polished, download-ready .docx file by default, or .pdf if requested.
+Output format: `.pdf` if user says "pdf", `.docx` otherwise (default).
 
----
+## Step 2 — Analyse Silently
 
-## Step 1 — Detect Input & Output Format
+**Company signals:** name, industry, size, JD tone (formal/casual/values-driven), cultural keywords
 
-### Input detection
-Check what has been provided:
-- **Job description present** → proceed immediately, no questions needed
-- **Job title + company only (no full JD)** → ask: "Can you paste the full job description?
-  Even a partial one helps me target the letter."
-- **Table row from /linkedin-jobs** → extract Job Title, Company, Location, Description
-  from that row and treat it as the job input
+**Role signals:** exact title, seniority, top 3 responsibilities (by emphasis + repetition)
 
-### Output format detection
-Scan the user's message for format preference:
-- "pdf" or "PDF" mentioned → output as `.pdf`
-- "docx" or "word" mentioned → output as `.docx`
-- Nothing mentioned → default to `.docx`
+**Primary problem:** Identify the single most important problem this hire is meant to solve. Look for the role's core purpose — not a list of duties, but the underlying business need. State it in one sentence before writing anything.
 
-Store the detected format as `OUTPUT_FORMAT`.
+**ATS keywords:** check `outputs/reports/` for `match_report_[Company]_[Role]_*.md` first — if found, use Block E keyword list. Only extract from JD if no report exists. **Use case-insensitive globbing** (e.g. `glob.glob(pattern, case_sensitive=False)` or pre-lowercase both sides); historic match reports (pre-2026-04-29) use mixed case for company names.
 
----
+**Candidate match:** from master resume — identify the ONE strongest experience story that maps directly to the primary problem. It must be specific: a real situation, a real action, a real outcome with numbers if they exist. Do not output this analysis.
 
-## Step 2 — Analyse the Job Description
+## Step 3 — Write the Letter
 
-Silently extract the following before writing anything:
+**Read `skills/_shared/writing-style.md` before writing any content.** All tone, voice, banned language, and the interview backtrack test are defined there. Do not redefine them here.
 
-**Company signals:**
-- Company name, industry, and size signals (startup / enterprise / agency / nonprofit)
-- Tone of the JD — formal, casual, technical, values-driven?
-- Any stated company values, mission language, or cultural keywords
+**Structure — 3 paragraphs, max 250 words total:**
 
-**Role signals:**
-- Exact job title and seniority level
-- Top 3 responsibilities they care most about (by emphasis and repetition)
-- Top 5–8 ATS keywords: skills, tools, methodologies, role-specific terms
+*Opening (2–3 sentences):*
+- Name the primary problem this role is hired to solve, then connect the candidate's background to it directly
+- Never: "I am writing to...", "I am excited to...", "Please find attached...", "With X years of experience..."
+- Do: problem → candidate's direct relevance. Start in the middle of the story.
+- Include 1–2 ATS keywords naturally
 
-**Candidate match:**
-- From the master resume already in this project, identify:
-  - 2–3 concrete achievements that directly map to the top responsibilities
-  - The most relevant role from the candidate's history for this position
-  - Any specific tools, certifications, or domain experience that matches
+*Middle (proof — the one best story):*
+- Tell ONE specific story from the candidate's experience that demonstrates they have solved this problem before
+- Concrete situation + action + outcome. Numbers where they exist.
+- 3–5 sentences. No bullet points. No second story diluting the first.
+- Include 2–3 ATS keywords woven into the narrative
 
-Do not output this analysis. Use it internally to write the letter.
+*Closing (2–3 sentences max):*
+- What the candidate would focus on in the first 60–90 days, specific to this role
+- One-line call to action — interest in a conversation, not eagerness
+- No "I look forward to hearing from you" as a standalone closer
 
----
-
-## Step 3 — Write the Cover Letter
-
-### Tone rules
-- **Enterprise / formal JD** → professional, structured, confident
-- **Startup / casual JD** → direct, energetic, first-person but not informal
-- **Values-heavy JD** → open with mission alignment, then pivot to credentials
-- Default if unclear: **confident and direct**
-
-### Structure — 3 paragraphs, no filler
-
-**Opening paragraph — The Hook**
-Do NOT open with:
-- "I am writing to express my interest in..."
-- "I am excited to apply for..."
-- "Please find attached my resume..."
-
-DO open with one of these approaches:
-- A direct statement of fit: why this role + this candidate is a natural match, named specifically
-- A concrete achievement that speaks to the company's core problem
-- A mission-aligned statement if the company's values are prominent in the JD
-
-Keep it to 3–4 sentences. Include 1–2 ATS keywords naturally.
-
-**Middle paragraph — Proof**
-- 2–3 specific achievements from the master resume that map to the top responsibilities
-- Use numbers, percentages, timeframes, or scale wherever they exist in the resume
-- Each achievement should answer: "So what does that mean for this company?"
-- Do not list bullet points — weave into flowing sentences
-- Include 2–3 more ATS keywords naturally
-
-**Closing paragraph — Forward-looking close**
-- One sentence on what the candidate would focus on in the first 60–90 days
-- Soft call to action: express genuine interest in a conversation, not desperation
-- No clichés: avoid "I look forward to hearing from you" as a standalone closer
-- Keep to 3 sentences max
-
-### Letter structure (full document)
-
+**Document structure:**
 ```
 [Candidate Full Name]
-[City, Province/State] | [Email] | [Phone] | [LinkedIn URL]
+[City, Province] | [Email] | [Phone] | [LinkedIn]
 
-[Date — formatted as: April 8, 2026]
+[Date — e.g. April 8, 2026]
 
-[Hiring Manager Name if known, otherwise omit]
+[Hiring Manager if known]
 [Company Name]
-[Company City, if known]
 
 Re: [Exact Job Title] — [Company Name]
 
-Dear [Hiring Manager Name / Hiring Team],
+Dear [Hiring Manager / Hiring Team],
 
-[Opening paragraph]
+[Opening]
 
-[Middle paragraph]
+[Middle]
 
-[Closing paragraph]
+[Closing]
 
 Sincerely,
 
 [Candidate Full Name]
 ```
 
-Pull candidate contact details from the master resume in the project.
-If hiring manager name is not in the JD, use "Hiring Team" — never use "To Whom It May Concern."
+Pull all contact details from master resume. Use "Hiring Team" if no name — never "To Whom It May Concern."
 
----
+## Step 3.5 — Reviewer Agent
 
-## Step 4 — Generate the Output File
+Read `skills/_shared/reviewer-agent.md`. Spawn a `general-purpose` sub-agent using
+the Cover Letter Reviewer Prompt. Pass the full JD text and the full draft letter
+inline — do not reference files on disk for these.
 
-Read the `OUTPUT_FORMAT` detected in Step 1.
+Once the reviewer returns its numbered suggestions, apply each one using judgment:
+- Missed keywords: weave into the middle paragraph where evidence exists
+- Stretch framing: apply the safer reframe or remove the claim
+- Tone and voice: fix per writing-style.md rules
+- Opening strength: rewrite the opening if the reviewer flags it as weak
 
-### DOCX output (default)
+The revised draft is what gets used in Step 4. Never generate the file before
+the reviewer pass is complete.
 
-Generate the .docx file using python-docx. Follow ALL formatting rules below precisely.
+## Path Resolution
 
-**Install and setup:**
-```bash
-pip install python-docx --break-system-packages
-```
+Resolve the project root at runtime in every script that writes a file:
 
-**Font and colour rules — must match the resume:**
-- Candidate name: `#1F3765` dark navy, bold, 16pt
-- Contact line: `#1A1A1A` black, 10pt, regular
-- "Re:" line and job title reference: `#1F3765` dark navy, bold, 11pt
-- Section label "Dear...": black, 11pt
-- Body paragraphs: `#1A1A1A` black, 11pt, regular
-- "Sincerely," and candidate sign-off name: black, 11pt
-- Font family: Calibri throughout
-
-**Page setup:**
 ```python
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-import datetime
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../_lib'))
+from project_paths import get_project_root
 
-doc = Document()
-
-# Page margins — 1 inch all sides
-sections = doc.sections
-for section in sections:
-    section.top_margin = Inches(1)
-    section.bottom_margin = Inches(1)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(1)
+PROJECT_ROOT  = get_project_root()
+COVER_LETTERS = os.path.join(PROJECT_ROOT, "outputs", "cover-letters")
+os.makedirs(COVER_LETTERS, exist_ok=True)
 ```
 
-**Full generation script:**
+Use `COVER_LETTERS` for all `doc.save()` and `soffice` `--outdir` calls. Never substitute a literal session path.
+
+---
+
+## Step 4 — Generate File
+
+Serialize the letter content to `/tmp/cover_content.py`:
+
 ```python
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from datetime import date
-
-NAVY = RGBColor(0x1F, 0x37, 0x65)
-BLACK = RGBColor(0x1A, 0x1A, 0x1A)
-
-doc = Document()
-
-# Remove default paragraph spacing
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
-
-def set_spacing(paragraph, before=0, after=0, line=None):
-    pf = paragraph.paragraph_format
-    pf.space_before = Pt(before)
-    pf.space_after = Pt(after)
-    if line:
-        from docx.shared import Pt as Pt2
-        pf.line_spacing = Pt2(line)
-
-def add_run(paragraph, text, bold=False, size=11, color=BLACK):
-    run = paragraph.add_run(text)
-    run.bold = bold
-    run.font.size = Pt(size)
-    run.font.color.rgb = color
-    run.font.name = "Calibri"
-    return run
-
-# ── HEADER: Candidate Name ──
-p_name = doc.add_paragraph()
-set_spacing(p_name, before=0, after=2)
-add_run(p_name, "CANDIDATE FULL NAME", bold=True, size=16, color=NAVY)
-
-# ── Contact line ──
-p_contact = doc.add_paragraph()
-set_spacing(p_contact, before=0, after=12)
-add_run(p_contact, "City, Province  |  email@example.com  |  +1 (555) 000-0000  |  linkedin.com/in/handle",
-        size=10, color=BLACK)
-
-# ── Date ──
-p_date = doc.add_paragraph()
-set_spacing(p_date, before=0, after=8)
-today = date.today().strftime("%B %-d, %Y")  # e.g. April 8, 2026
-add_run(p_date, today, size=11, color=BLACK)
-
-# ── Company block (omit if unknown) ──
-# p_company = doc.add_paragraph()
-# add_run(p_company, "Company Name\nCity, Province", size=11, color=BLACK)
-# set_spacing(p_company, before=0, after=8)
-
-# ── Re: line ──
-p_re = doc.add_paragraph()
-set_spacing(p_re, before=0, after=12)
-add_run(p_re, "Re: ", bold=True, size=11, color=NAVY)
-add_run(p_re, "Job Title — Company Name", bold=True, size=11, color=NAVY)
-
-# ── Salutation ──
-p_sal = doc.add_paragraph()
-set_spacing(p_sal, before=0, after=8)
-add_run(p_sal, "Dear Hiring Team,", size=11, color=BLACK)
-
-# ── Body paragraphs ──
-body_paragraphs = [
-    "OPENING PARAGRAPH TEXT HERE.",
-    "MIDDLE PARAGRAPH TEXT HERE.",
-    "CLOSING PARAGRAPH TEXT HERE."
-]
-
-for body_text in body_paragraphs:
-    p = doc.add_paragraph()
-    set_spacing(p, before=0, after=10)
-    add_run(p, body_text, size=11, color=BLACK)
-
-# ── Sign-off ──
-p_sign = doc.add_paragraph()
-set_spacing(p_sign, before=12, after=0)
-add_run(p_sign, "Sincerely,", size=11, color=BLACK)
-
-p_name_end = doc.add_paragraph()
-set_spacing(p_name_end, before=24, after=0)
-add_run(p_name_end, "CANDIDATE FULL NAME", bold=True, size=11, color=BLACK)
-
-# ── Save ──
-output_path = "/mnt/user-data/outputs/cover_letter_[CompanyName]_[JobTitle].docx"
-doc.save(output_path)
-print(f"Saved: {output_path}")
+content = {
+    "re_line": "[Exact Job Title] — [Company Name]",
+    "hiring_manager": "[Name or 'Hiring Team']",
+    "opening": "[Opening paragraph text]",
+    "middle": "[Middle paragraph text]",
+    "closing": "[Closing paragraph text]",
+    # contact_line is read from master-resume.md automatically if omitted
+}
 ```
 
-Replace all placeholder values (`CANDIDATE FULL NAME`, body paragraphs, contact line,
-job title, company name) with the actual generated content before running the script.
-
-After saving, validate the file opens cleanly:
+Then run:
 ```bash
-python -c "from docx import Document; Document('/mnt/user-data/outputs/cover_letter_*.docx'); print('OK')"
+python3 skills/cover-letter-generator/generate_cover_letter.py \
+  --company "[normalised-company]" \
+  --role "[normalised-role]" \
+  --content-file /tmp/cover_content.py \
+  --output-dir outputs/cover-letters/
 ```
 
-Then present the file to the user.
+The script handles: formatting (Arial, NAVY/BLACK, 1-inch margins), metadata, and PDF conversion. Prints `SAVED:/path` for each file. Present both `.docx` and `.pdf` links.
 
----
-
-### PDF output
-
-When `OUTPUT_FORMAT` is `pdf`, generate the .docx first using the steps above,
-then convert to PDF using LibreOffice:
-
-```bash
-pip install python-docx --break-system-packages
-# Generate the .docx first (same script as above), then:
-python scripts/office/soffice.py --headless --convert-to pdf \
-    /mnt/user-data/outputs/cover_letter_[Company]_[Title].docx \
-    --outdir /mnt/user-data/outputs/
-```
-
-If `scripts/office/soffice.py` is not available, use the direct LibreOffice command:
-```bash
-soffice --headless --convert-to pdf \
-    /mnt/user-data/outputs/cover_letter_[Company]_[Title].docx \
-    --outdir /mnt/user-data/outputs/
-```
-
-Present the .pdf file to the user. Do not present the intermediate .docx if PDF was requested.
-
----
+Formatting constraints still apply: max 1 page, 11pt minimum, 250-word body cap. If the letter content exceeds limits, tighten paragraphs before serializing.
 
 ## Step 5 — Post-output Summary
 
-After presenting the file, output this block and nothing else:
-
 ```
-✅ Cover Letter — [Job Title] at [Company Name]
-📄 Format: [DOCX / PDF]
-🎨 Tone used: [Formal / Professional / Conversational]
+✅ Cover Letter — [Job Title] at [Company]
+🎨 Tone: [Formal / Professional / Conversational]
+🧩 Primary problem addressed: [one sentence]
+💡 ATS keywords used: [comma-separated list]
+📏 Word count: [N] words
 
-💡 ATS keywords woven in: [comma-separated list of the keywords used]
-
----
-Want adjustments?
-- "Make it more casual" / "Make it more formal"
-- "Shorter" (I'll cut to 2 tight paragraphs)
-- "Different opening hook"
-- "Generate as PDF instead" / "Generate as DOCX instead"
-- "Generate the matching resume" → run tailored-resume-generator
+Want adjustments? "sharpen the opening" / "tighten the story" / "different example" / "generate matching resume"
 ```
 
----
+## Rules
 
-## Output Rules
-
-- **Never output the cover letter as plain text in chat** — the file is the deliverable
-- **Never ask for the resume** — it is in the project
-- **Never use filler openers** — no "I am excited", "I am writing to", "Please find attached"
-- **Never use "To Whom It May Concern"** — use "Hiring Team" if name is unknown
-- **Never exceed 1 page** — if content is too long, tighten paragraphs, do not reduce font size below 11pt
-- **Filename format**: `cover_letter_[CompanyName]_[JobTitle].docx` (no spaces — use underscores)
-- **Do not add a skills section, table, or any elements not in the structure above**
-- Pull all candidate details (name, email, phone, LinkedIn, city) from the master resume in the project
+- Never output letter as plain text in chat — file is the deliverable
+- Never use filler openers; never use "To Whom It May Concern"
+- Filename: `cover_letter_[Company]_[Role]_[YYYY-MM-DD].docx`
+- No tables, skills sections, or elements not in the structure above
+- Hard cap: 250 words body text (excludes header, salutation, sign-off). If over, cut — never shrink font.

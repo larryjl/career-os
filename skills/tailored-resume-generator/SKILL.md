@@ -1,239 +1,217 @@
 ---
-name: tailored-resume-generator
-description: "Analyzes job descriptions and generates tailored resumes that highlight relevant experience, skills, and achievements to maximize interview chances"
+name: tailored-resume
+description: "Generates tailored resumes matched to a specific JD. Trigger on: '/tailored-resume', 'tailor my resume', 'create a resume for this role', or any request to adapt/rewrite a resume for a job. Also handles review-only mode: '/review-resume', 'review this resume', 'run the reviewer on this resume', or any request to critique/improve an existing tailored resume against a JD."
 ---
 
-## Instructions
+## Entry Point — Determine Mode
 
-When a user requests resume tailoring:
+**Mode A — Draft mode (default):** No existing resume provided. Proceed to Step 1.
 
-### 1. Gather Information
+**Mode B — Review mode:** The user provides an existing resume AND a JD. Triggers include:
+- "review this resume", "run the reviewer on this", "/review-resume"
+- Uploading or referencing an existing resume file alongside a JD
+- "improve my resume for [role]" when an existing resume is attached or named
 
-**Job Description Analysis**:
-- Request the full job description if not provided
-- Ask for the company name and job title
+In review mode:
+1. **Resolve the resume text:**
+   - If the user uploaded a `.docx` file: read it from `uploads/` using python-docx (`pip install python-docx --break-system-packages`) to extract plain text
+   - If the user uploaded a `.pdf`: extract text with `pdftotext <file> -` (shell) or `pdfinfo` + `pdftotext`
+   - If the user pasted plain text: use it directly
+   - If the user named a file (e.g., "the Telus resume") or gave a company/role: glob `outputs/resumes/` case-insensitively to find the matching `.docx`, then extract its text with python-docx
+2. **Resolve the JD:** same as Step 1 of draft mode — if the user provided a URL, fetch it; if pasted, use as-is; if referencing a saved posting, read from `outputs/postings/`
+3. **Skip to Step 4.5** (Reviewer Agent) — pass the resolved resume text as `[INSERT FULL RESUME TEXT]`
+4. After the reviewer returns, apply feedback (same rules as draft mode Step 4.5), then continue from **Step 5** onward (preview → confirm → generate files → post-save)
 
-**Candidate Background**:
-- If user provides existing resume, use it as the foundation
-- If not, request:
-  - Work history (job titles, companies, dates, responsibilities)
-  - Education background
-  - Key skills and technical proficiencies
-  - Notable achievements and metrics
-  - Certifications or awards
-  - Any other relevant information
+---
 
-### 2. Analyze Job Requirements
+## Step 0.5 — Load Match Report (if available)
 
-Extract and prioritize:
-- **Must-have qualifications**: Years of experience, required skills, education
-- **Key skills**: Technical tools, methodologies, competencies
-- **Soft skills**: Communication, leadership, teamwork
-- **Industry knowledge**: Domain-specific experience
-- **Keywords**: Repeated terms, phrases, and buzzwords for ATS optimization
-- **Company values**: Cultural fit indicators from job description
+Before analysing the JD, check `outputs/reports/` for an existing match report for this company + role (glob case-insensitively for `match_report_[company]_[role]_*.md` or `match_report_[company]_[role]_*.docx`).
 
-Create a mental map of:
-- Priority 1: Critical requirements (deal-breakers)
-- Priority 2: Important qualifications (strongly desired)
-- Priority 3: Nice-to-have skills (bonus points)
+**If found:**
+- Read the report and extract:
+  - **Gap analysis** (Block B): hard gaps, soft gaps, transferable skills flagged
+  - **ATS keywords** (if full mode report): exact terms to incorporate
+  - **Positioning notes**: any archetype framing, competitive landscape notes, or interview story priorities
+  - **Match Score and label**: note for reference (do not display to user — use internally to calibrate emphasis)
+- Use this as a primary input alongside the JD in Steps 1–3. The match report's gap analysis supersedes your own inferences where they conflict — it was produced from a more detailed evaluation.
+- Silently note: `📋 Match report loaded: [filename]`
 
-### 3. Map Candidate Experience to Requirements
+**If not found:** proceed silently to Step 1 with JD only.
 
-For each job requirement:
-- Identify matching experience from candidate's background
-- Find transferable skills if no direct match
-- Note gaps that need to be addressed or de-emphasized
-- Identify unique strengths to highlight
+---
 
-### 4. Structure the Tailored Resume
+## Step 1 — Analyse JD
 
-**Professional Summary** (3-4 lines):
-- Lead with years of experience in the target role/field
-- Include top 3-4 required skills from job description
-- Mention industry experience if relevant
-- Highlight unique value proposition
+**Application Instructions Check (run first, before extraction):**
 
-**Technical/Core Skills Section**:
-- Group skills by category matching job requirements
-- List required tools and technologies first
-- Use exact terminology from job description
-- Only include skills you can substantiate with experience
-- **Single-line format**: Each skill category must be on **one line** — bold category name followed by a colon, then comma-separated skills. Example: **Languages:** Python, JavaScript, SQL — never put the category title and skills on separate lines
+Scan the JD for specific application instructions:
+- Email-based application (e.g. "send your resume to", "apply by emailing", "forward your CV to [email]")
+- Portal-specific requirements (e.g. "only applications via [portal] accepted", "do not apply via LinkedIn")
+- Required reference numbers or subject line instructions
+- Cover letter explicitly required (not just suggested)
 
-**Professional Experience**:
-- For each role, emphasize responsibilities and achievements aligned with job requirements
-- Use action verbs: Led, Developed, Implemented, Optimized, Managed, Created, Analyzed
-- **Quantify achievements**: Include numbers, percentages, timeframes, scale
-- Reorder bullet points to prioritize most relevant experience
-- Use keywords naturally from job description
-- Format: **[Action Verb] + [What] + [How/Why] + [Result/Impact]**
+**If found:**
+1. Add to the `Notes` field in `.claude/state/applications.md` for this row: `Apply via: [instruction summary]` (semicolon-separated from existing notes)
+2. Surface to the user before showing any resume content:
 
-**Education**:
-- List degrees, certifications relevant to position
-- Include relevant coursework if early career
-- Add certifications that match job requirements
+```
+📬 Application Instructions
+[Exact instruction text from JD]
+```
 
-**Optional Sections** (if applicable):
-- Certifications & Licenses
-- Publications or Speaking Engagements
-- Awards & Recognition
-- Volunteer Work (if relevant to role)
-- Projects (especially for technical roles)
+**If not found:** proceed silently.
 
-### 5. Optimize for ATS (Applicant Tracking Systems)
+Extract and prioritise:
+- Must-have qualifications, key skills, ATS keywords (repeated terms/phrases)
+- Soft skills, domain knowledge, company values/cultural signals
+- Priority tiers: P1 = deal-breakers, P2 = strongly desired, P3 = nice-to-have
 
-- Use standard section headings (Professional Experience, Education, Skills)
-- Incorporate exact keywords from job description naturally
-- Avoid tables, graphics, headers/footers, or complex formatting
-- Use standard fonts and bullet points
-- **Font sizes**: Use 11pt or 11.5pt for body text and bullet points; section headings at 11.5pt–12pt; name/header at 14–16pt. Minimum font size anywhere on the resume is 10pt — never go below this, even for metadata or footer text.
-- Include both acronyms and full terms (e.g., "SQL (Structured Query Language)")
-- Match job title terminology where truthful
+## Step 2 — Map Resume to JD
 
-### 6. Format and Present
+For each requirement: find direct match, transferable skill, or flag gap. Note unique strengths to lead with.
 
-**Format Options**:
-- **DOCX (default)**: Always generate a `.docx` file unless the user explicitly requests otherwise. Use the `docx` skill to produce a properly formatted Word document with correct fonts, colors, and layout.
-- **Markdown**: Only if user explicitly requests it
-- **Plain Text**: Only if user explicitly requests it
+## Step 3 — Draft Resume
 
-**Resume Structure Guidelines**:
-- Keep to 1 page for <10 years experience, 2 pages for 10+ years
-- Use consistent formatting and spacing
-- Ensure contact information is prominent
-- Use reverse chronological order (most recent first)
-- Maintain clean, scannable layout with white space
-- **Font size rules** (enforce strictly in all Word/PDF/formatted outputs):
-  - Body text & bullet points: **11pt or 11.5pt** (prefer 11.5pt when space allows)
-  - Subheadings / role titles: **11.5pt**
-  - Section headings: **11.5pt–12pt**
-  - Candidate name: **14–16pt**
-  - Footer / page numbers / metadata: **10pt minimum** (never below 10pt)
-- **Color rules** — apply consistently across all formatted outputs:
-  - **Candidate name**: Dark navy `#1F3765` — bold
-  - **Section headings**: Dark navy `#1F3765` — bold, **center aligned**
-  - **Company names**: Dark navy `#1F3765` — bold
-  - **Skill category labels** (e.g. "Languages:"): Black `#000000` — **bold**, followed immediately by a colon, then the skills list in black regular weight on the **same paragraph/line**. No color styling — do not apply navy or any color to skill labels. In `python-docx`, add two runs to a single paragraph: `run1` (bold, black) for `"CategoryName:"` and `run2` (normal weight, black) for `" Skill1, Skill2, Skill3"`.
-  - All other text (body, bullets, dates, contact info): Black `#000000` or near-black `#1A1A1A`
-  - In `python-docx`, set color via: `run.font.color.rgb = RGBColor(0x1F, 0x37, 0x65)`
-- **Alignment rules**:
-  - Section headings: `paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER`
-  - **Company name + date range on the same line**: Do NOT put the date on a separate paragraph. Use a single paragraph with a right-aligned tab stop so the company name sits on the left and the date range sits flush right on the same row. Implementation:
-    ```python
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-    from docx.shared import Pt, Inches
+**Professional Summary (2–3 sentences):**
+- Lead with discipline/experience level, not job title ("Product leader with 8 years..." not "Consultant with...")
+- Only include topics explicitly in the JD — no inferred adjacent skills
+- Remove industry-specific jargon if the target role is outside that industry (e.g., remove healthcare terminology for non-healthcare roles)
 
-    def add_company_date_row(doc, company, date_range, indent_left=0):
-        """Adds a paragraph: Company Name <tab> Date Range (right-aligned)."""
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after = Pt(0)
+**Skills Section:**
+- Single-line format: **Category:** skill1, skill2, skill3
+- Only skills relevant to JD; exact JD terminology; only skills you can substantiate
 
-        # Set a right-aligned tab stop at the right margin (e.g. 6.5 inches)
-        pPr = p._p.get_or_add_pPr()
-        tabs = OxmlElement('w:tabs')
-        tab = OxmlElement('w:tab')
-        tab.set(qn('w:val'), 'right')
-        tab.set(qn('w:pos'), str(int(6.5 * 1440)))  # 1440 twips per inch
-        tabs.append(tab)
-        pPr.append(tabs)
+**Experience:**
+- **Bracketed titles:** Role titles in the master resume may include a standardised descriptor in brackets (e.g. "Analyst [Data Strategist]"). These brackets exist to aid matching — they are not official titles. When tailoring: always keep the official title first. Retain the bracketed descriptor only if it is more relevant to the target role than the official title alone — in that case, format it as "Official Title [Bracketed Title]". If the official title is already the best match, remove the brackets entirely. Never leave raw brackets in the final resume.
+- List roles in reverse chronological order (most recent first)
+- Within each role, order bullets from most JD-relevant and strongest to least relevant and weakest
+- Action verb + What + How/Why + Result/Impact; quantify everything
+- Use JD keywords naturally
+- Remove irrelevant content:
+  - **Always remove:** data governance terminology if not mentioned in JD
+  - **Always remove:** domain-specific jargon from other industries (e.g., platform names, product names, and technical terminology specific to the candidate's prior industry that are not relevant to the target role's domain) — strip these from bullets when the target role is in a different field.
+  - **Ask user before removing:** other weak or irrelevant points that don't align with JD requirements
+- **Junior role exclusion:** Omit roles that are clearly junior/entry-level (identify from the candidate's profile — typically roles with titles such as "clerk", "assistant", or similar entry-level designations) unless the JD specifies a minimum years-of-experience requirement that cannot be met without them. If including them is needed to satisfy a years-of-experience bar, include only the role title, employer, and dates — no bullets.
 
-        # Company name run (bold, navy)
-        run_co = p.add_run(company)
-        run_co.bold = True
-        run_co.font.color.rgb = RGBColor(0x1F, 0x37, 0x65)
+**Education:** degrees, relevant certs; coursework only if early career
 
-        # Tab character to jump to right-aligned stop
-        p.add_run('\t')
+**Professional Development:**
+- List items in reverse chronological order (most recent year first; in-progress items go first)
+- Credential name and date/status on one line (e.g. `[Certification Name] | [Year]`)
+- Description (if any) on the next line (e.g. `[skills or topics covered]`)
+- No description line for certifications that are self-explanatory or status-only (e.g. well-known vendor certs, in-progress certs)
+- Example format:
+  ```
+  [Certification or Program Name] | [Year or Year Range]
+  [Optional: brief description of skills covered]
 
-        # Date range run (normal weight, black)
-        run_date = p.add_run(date_range)
-        run_date.bold = False
-        run_date.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+  [Self-explanatory Certification] | [Year]
 
-        return p
-    ```
-  - All other content: left aligned
-- **CRITICAL — docx font size conversion**: When generating `.docx` files, always set font size via `run.font.size = Pt(n)` from `docx.shared` — this handles the conversion automatically and correctly. If you must write a manual `pt()` helper, the correct formula is `n * 2` (half-points), **never** `n * 20` (that is twips, used only for paragraph spacing/margins). Using `n * 20` makes every font size exactly 10× too large (e.g. 18pt → 180pt).
+  [In-progress Certification] | In progress
+  ```
 
-### 7. Provide Strategic Recommendations
+**Optional sections** (only if relevant): Certifications, Publications, Awards, Projects
 
-After presenting the tailored resume, offer:
+**ATS rules:** standard headings; no tables/graphics/headers/footers; standard fonts; no acronyms unless in JD
 
-**Strengths Analysis**:
-- What makes this candidate competitive
-- Unique qualifications to emphasize in cover letter or interview
+**Formatting:** read `skills/_shared/formatting.md` before generating — do not redefine font sizes, colours, or margins inline. Use `add_company_date_row()` helper. Font size: always `Pt(n)`, never twips. Use `keep_with_next()` on all headings and company/date rows.
 
-**Gap Analysis**:
-- Requirements not fully met
-- Suggestions for addressing gaps (courses, projects, reframing experience)
+## Step 4 — Writing Style
 
-**Interview Preparation Tips**:
-- Key talking points aligned with resume
-- Stories to prepare based on job requirements
-- Questions to ask that demonstrate fit
+**Read `skills/_shared/writing-style.md` before writing any content.** All tone, voice, banned language, and the interview backtrack test are defined there. Do not redefine them here.
 
-**Cover Letter Hooks**:
-- Suggest 2-3 opening lines for cover letter
-- Key achievements to expand upon
+## Step 4.5 — Reviewer Agent
 
-### 8. Iterate and Refine
+Read `skills/_shared/reviewer-agent.md`. Spawn a `general-purpose` sub-agent using
+the Resume Reviewer Prompt. Pass the full JD text and the full draft resume text
+inline — do not reference files on disk for these.
 
-Ask if user wants to:
-- Adjust emphasis or tone
-- Add or remove sections
-- Generate alternative versions for different roles
-- Create format variations (traditional vs. modern)
-- Develop role-specific versions (if applying to multiple similar positions)
+Once the reviewer returns its feedback, apply each item using judgment:
+- Content quality audit (Section A): apply ✂ cuts and ✏ rewrites; show a brief
+  summary of what changed
+- Missed keywords: add to the most relevant existing bullet where evidence supports it
+- Stretch framing: apply the safer reframe or remove the claim
+- Tone and voice: fix per writing-style.md rules
+- Bullet strength: rewrite or cut low-signal bullets as suggested
 
-### 9. Best Practices to Follow
+The revised draft is what gets shown in the preview. Never show the preview before
+the reviewer pass is complete.
 
-**Do**:
-- Be truthful and accurate - never fabricate experience
-- Use industry-standard terminology
-- Quantify achievements with specific metrics
-- Tailor each resume to specific job
-- Proofread for grammar and consistency
-- Keep language concise and impactful
+## Step 5 — Preview
 
-**Don't**:
-- Include personal information (age, marital status, photo unless requested)
-- Use first-person pronouns (I, me, my)
-- Include references ("available upon request" is outdated)
-- List every job if career is 20+ years (focus on relevant, recent experience)
-- Use generic templates without customization
-- Exceed 2 pages unless very senior role
+Show full plain-text preview in a code block with all formatting rules applied (bold for headings/credentials, proper spacing). Do not ask for confirmation here — proceed immediately to Step 6.
 
-### 10. Special Considerations
+**Formatting rules to apply in preview:**
+- Section headings in CAPS
+- Company/date on one line (use tab spacing visually: `Company, Location` [TAB] `Date Range`)
+- Professional Development: bold credentials with blank lines between items (see Step 3 example)
+- Bold all role titles and credential names
+- Preserve bullet structure exactly as it will appear in the final document
 
-**Career Changers**:
-- Use functional or hybrid resume format
-- Emphasize transferable skills
-- Create compelling narrative in summary
-- Focus on relevant projects and coursework
+## Step 6 — Strategic Recommendations
 
-**Recent Graduates**:
-- Lead with education
-- Include relevant coursework, projects, internships
-- Emphasize leadership in student organizations
-- Include GPA if 3.5+
+After showing the preview, briefly note:
+- **Gaps:** unmet requirements + mitigation (reframe, course, project)
+- **Verify before submitting:** Flag any claims in the resume that might be overstated or hard to defend in an interview. Look for:
+  - Ownership language ("led", "owned", "drove", "built") on work that was shared, supported, or partial — if the candidate was a contributor rather than the decision-maker, note it
+  - Skill-level signals ("expert in", "deep experience with", "proficient") for tools or methods where the evidence is thin or dated — flag if the JD is likely to probe this in a technical screen
+  - Metrics or impact claims that are approximate, inferred, or hard to source — note if they'll need to reconstruct the story
+  - Scope inflation (e.g. "company-wide" or "cross-functional" when the actual reach was narrower)
 
-**Senior Executives**:
-- Lead with executive summary
-- Focus on leadership and strategic impact
-- Include board memberships, speaking engagements
-- Emphasize revenue growth, team building, vision
+## Step 7 — Generate Files
 
-**Technical Roles**:
-- Include technical skills section prominently
-- List programming languages, frameworks, tools
-- Include GitHub, portfolio, or project links
-- Mention methodologies (Agile, Scrum, etc.)
+Run banned-words check first (scan draft text against `skills/_shared/writing-style.md`). If hits found: rewrite silently, re-check, then proceed.
 
-**Creative Roles**:
-- Include link to portfolio
-- Highlight creative achievements and campaigns
-- Mention tools and software proficiencies
-- Consider more creative formatting (while maintaining ATS compatibility)
+Serialize the reviewed resume content to `/tmp/resume_content.py` using this format:
+
+```python
+content = {
+    "contact_line": "[City, Province | email | phone | linkedin]",
+    "summary": "...",
+    "skills": [
+        {"category": "[Category]", "items": ["skill1", "skill2"]},
+    ],
+    "experience": [
+        {
+            "title": "[Job Title]",
+            "company": "[Company Name]",
+            "location": "[City, Province]",
+            "dates": "[Start] – [End]",
+            "bullets": ["[Bullet 1]", "[Bullet 2]"],
+        },
+    ],
+    "education": [
+        {
+            "degree": "[Degree]",
+            "institution": "[School]",
+            "location": "[City, Province]",
+            "dates": "[Year Range]",
+            "details": [],
+        }
+    ],
+    "prof_dev": [
+        {"credential": "[Cert Name] | [Year]", "description": "[description or None]"},
+    ],
+    "optional_sections": [],
+}
+```
+
+**Order bullets best-to-worst within each role** — the trim loop drops from the end.
+
+Then run:
+```bash
+python3 skills/tailored-resume-generator/generate_resume.py \
+  --company "[normalised-company]" \
+  --role "[normalised-role]" \
+  --content-file /tmp/resume_content.py \
+  --output-dir outputs/resumes/
+```
+
+The script handles: formatting, metadata, PDF conversion, page-count check, and trim loop (drops weakest bullets oldest-first until ≤ 2 pages). On success it prints `SAVED:/path` for each file. Present both `.docx` and `.pdf` links.
+
+## Step 8 — Post-Save (automatic, no prompt)
+
+1. Run save-job-posting on JD (skip if posting already exists for this company + role)
+2. Log row in `.claude/state/applications.md` with status `applied`, `Resume Used` set to the `.docx` filename; Notes field with the posting filename
+3. Confirm: "✅ Posting saved + resume saved. Application logged as applied." — if `Posting_URL` is non-empty, append it on the next line: "🔗 Posting URL: [url]"

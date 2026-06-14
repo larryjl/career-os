@@ -36,7 +36,7 @@ The table includes: score, colour indicator (🟢🟡🟠🔴), job title, compa
 
 Claude runs `/job-match` on jobs #1, #2, and #3 in sequence. For each:
 
-- Full A–F evaluation
+- Full A–E evaluation
 - Match score /100
 - Go/no-go recommendation
 

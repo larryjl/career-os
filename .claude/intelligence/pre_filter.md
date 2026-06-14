@@ -1,8 +1,31 @@
-# Pre-Filter: Quick Score Layer
+# Filter: Filter Score Layer
 
 Runs automatically after `/job-scout` and before any `/job-match`.
-Scores each job 0–20 across four dimensions using the candidate's resume
-and `.claude/memory/targets.md` as input.
+Scores each job 0–10 across two dimensions using `.claude/memory/targets.md` and `profile/skills-inventory.md` as inputs.
+
+**Note:** `profile/skills-inventory.md` is created by the user. If it does not exist, score Skills Match from the master resume instead.
+Does NOT require the master resume.
+
+---
+
+## Inputs
+
+- `.claude/memory/targets.md` — target roles, seniority, location, visa, industry preferences
+- `profile/skills-inventory.md` — candidate's tools and skills for Skills Match scoring
+- Job listing data from `/job-scout` — title, responsibilities, location, requirements
+
+**Does NOT use `profile/master-resume.md`.** The filter scores against stated targets and skills inventory only — full capability matching happens in `/job-match`.
+
+---
+
+## Location Block
+
+Before calculating dimension scores, check for hard-block conditions,
+if any of the following are present, flag the role ⛔ with the reason and do not run `/job-match`:
+
+- Role is located outside candidate's province (Alberta) or country (Canada) AND explicitly states on-site, in-person, or relocation required
+- Role requires citizenship or work authorisation or security clearance not held in `.claude/memory/targets.md`
+- Role requires a licence or credential listed not held in `.claude/memory/targets.md`
 
 ---
 
@@ -12,53 +35,33 @@ and `.claude/memory/targets.md` as input.
 
 Does the job title and core responsibilities match the candidate's target role?
 
-| Score | Criteria |
-|-------|----------|
-| 5 | Title and responsibilities are an exact match to target role |
-| 4 | Title differs slightly but core work is the same |
-| 3 | Meaningful overlap — at least 60% of responsibilities align |
-| 2 | Related role but significant scope mismatch |
-| 1 | Tangentially related |
-| 0 | Unrelated |
-
-### 2. Seniority Fit (0–5)
-
-Does the required experience level match the candidate's actual experience?
+**Before scoring:** Read the `## Target Roles` section of `.claude/memory/targets.md`. Score against the listed target roles.
 
 | Score | Criteria |
 |-------|----------|
-| 5 | Years, scope, and team size are a direct match |
-| 4 | One level off but candidate can credibly position up or down |
-| 3 | Requires stretch — candidate meets 60–80% of seniority signals |
-| 2 | Significant gap — likely to screen out at resume stage |
-| 1 | Clear mismatch (e.g. Director role for a mid-level candidate) |
-| 0 | Not applicable / no experience overlap |
+| 5 | Title and responsibilities are an exact match to a listed target role |
+| 4 | Title differs slightly but core work matches a listed target role |
+| 3 | Meaningful overlap with a listed target — at least 60% of responsibilities align |
+| 2 | Related role but not a listed target; significant scope mismatch |
+| 1 | Tangentially related to any listed target |
+| 0 | Unrelated to all listed targets |
 
-### 3. Industry Relevance (0–5)
+### 2. Skills Match (0–5)
 
-Is the industry one the candidate has worked in or is explicitly targeting?
+Do the role's required tools and skills align with the candidate's skills inventory?
 
-| Score | Criteria |
-|-------|----------|
-| 5 | Exact industry match (candidate has direct experience) |
-| 4 | Adjacent industry — skills transfer cleanly |
-| 3 | Different industry but domain knowledge partially applies |
-| 2 | Industry is a stretch; JD likely expects sector-specific knowledge |
-| 1 | Unrelated industry |
-| 0 | Industry is a hard constraint mismatch (e.g. requires sector licence) |
-
-### 4. Geography / Visa / Constraints (0–5)
-
-Does the role satisfy location, remote policy, and work authorisation constraints from `targets.md`?
+**Before scoring:** Read `profile/skills-inventory.md`. Score required tools/skills only — preferred, nice-to-have, or familiarity-only items do not count as missing.
 
 | Score | Criteria |
 |-------|----------|
-| 5 | All constraints satisfied (location, remote, visa) |
-| 4 | Minor friction — e.g. hybrid when fully remote preferred |
-| 3 | One constraint borderline — worth flagging but not a blocker |
-| 2 | One hard constraint likely violated (e.g. requires sponsorship candidate can't get) |
-| 1 | Multiple constraint mismatches |
-| 0 | Hard block — role is not viable regardless of other scores |
+| 5 | All required tools present, experience level met or exceeded, most nice-to-haves also met |
+| 4 | All required tools present, slight mismatch on experience level or nice-to-have skills |
+| 3 | 1 required tool missing but an easily bridgeable gap or an alternative tool is met|
+| 2 | 2 required tools missing but a bridgeable gap or alternative tools are met|
+| 1 | 3+ required tools missing or experience level is not bridgeable|
+| 0 | Core stack largely foreign — majority of required tools absent |
+
+Note specific missing tools in the Reason column whenever Skills Match ≤ 3.
 
 ---
 
@@ -66,39 +69,39 @@ Does the role satisfy location, remote policy, and work authorisation constraint
 
 | Score | Decision |
 |-------|----------|
-| 18–20 | Strong — prioritise for `/job-match` |
-| 14–17 | Eligible — run `/job-match` |
-| 10–13 | Borderline — show to human with reason, skip unless overridden |
-| 0–9   | Skip — do not run `/job-match` |
+| 9–10 | Strong — recommend for `job-match` |
+| 6–8  | Eligible — eligible for `job-match` |
+| 4–5  | Borderline — display with reason, skip unless overridden |
+| 0–3  | Skip — do not run `job-match`,  skip unless overridden |
 
 ---
 
 ## Output Format
 
-Add a `QS` column to the scout results table. Show all jobs, including skipped ones.
+The Filter Score is a /10 gate score. It is distinct from match score, which is tracked in a separate column.
 
-```
-| #  | Company  | Role              | QS    | Status   | Reason (if skipped)        |
-|----|----------|-------------------|-------|----------|----------------------------|
-| 1  | Shopify  | Senior PM         | 18/20 | ✅ Match  |                            |
-| 2  | Stripe   | PM, Payments      | 16/20 | ✅ Match  |                            |
-| 3  | Acme Co  | Director of PM    | 11/20 | ⚠️ Skip  | Seniority gap (2), visa (1)|
-| 4  | US Corp  | Product Manager   | 6/20  | ❌ Skip  | Requires US citizenship    |
-```
+Display a results table. Show all jobs, including skipped ones.
 
-After the table, list eligible jobs (≥ 14) and prompt:
-`"Ready to run /job-match on #1 and #2? (yes / pick / skip)"`
+Example:
+```
+| #  | Company  | Role              | Filter Score | Status      | Reason (if skipped/flagged)     |
+|----|----------|-------------------|--------------|-------------|---------------------------------|
+| 1  | Shopify  | Senior Analyst    | 9/10         | ✅ Match     |                                 |
+| 2  | Stripe   | Analytics Eng     | 7/10         | ✅ Match     | Missing: dbt                    |
+| 3  | Acme Co  | Data Engineer     | 4/10         | ⚠️ Skip      | Missing: Spark, Airflow         |
+| 4  | US Corp  | Data Analyst      | ⛔           | ⛔ Hard block | Requires US citizenship         |
+```
 
 ---
 
-## Inputs
+## Potential Future Dimensions
 
-- `profile/master-resume.md` — candidate experience, skills, seniority signals
-- `.claude/memory/targets.md` — target roles, salary, location, visa, company preferences
-- Job listing data from `/job-scout` — title, responsibilities, location, requirements
+**Seniority Fit (0–5):** Score against the target seniority band in `targets.md`. Direct match → 5; one level off → 4; two levels off or ambiguous → 3; no signals or significant mismatch → 2; clear mismatch (e.g. Director when targeting Senior IC) → 1. Would require adjusting threshold (~≥9/15) to maintain selectivity.
 
-## Override
+**Industry Relevance (0–5):** Score against preferred industries in `targets.md`. Exact match → 5; adjacent/overlapping domain → 4; broadly tech-adjacent → 3; unrelated → 2; poor fit → 1; hard constraint mismatch → 0. Only worth adding if industry targeting becomes more selective.
 
-If the human explicitly asks to run `/job-match` on a job below the threshold,
-proceed without warning — the human's explicit instruction takes priority.
-Note the override in `.claude/memory/learnings.md`.
+**Geography / Visa / Constraints (0–5):** Score against location, remote policy, and work authorisation in `targets.md`. All satisfied → 5; minor friction (hybrid vs remote) → 4; one constraint borderline → 3; policy unknown → 2; outside target location with unspecified remote → 1. Currently handled via hard-block for disqualifying cases.
+
+**Compensation Fit (0–5):** Score against the salary floor and target range in `targets.md`. Below floor → 0–1; within range → 4–5; unknown → 2. Add when enough postings include comp data to make scoring reliable.
+
+**Contract/Permanent Fit (0–5):** Score against stated contract preference in `targets.md`. Only worth adding if there is a clear preference — otherwise adds noise.
